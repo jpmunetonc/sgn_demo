@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de Gestión de Notas - SGN</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light container py-5">
+    <h1 class="mb-4 text-center">Sistema de Gestión de Notas (SGN)</h1>
+
+    <div class="row">
+        <!-- Formulario de Registro (Sin campo de Código) -->
+        <div class="col-md-5 mb-4">
+            <div class="card shadow p-4">
+                <h3>Registrar Estudiante</h3>
+                <form id="formEstudiante">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Estudiante</label>
+                        <input type="text" class="form-control" id="nombre" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Nota 1 (0-5)</label>
+                            <input type="number" step="0.1" min="0" max="5" class="form-control" id="n1" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Peso 1 (Ej: 0.3)</label>
+                            <input type="number" step="0.1" min="0" max="1" class="form-control" id="p1" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Nota 2 (0-5)</label>
+                            <input type="number" step="0.1" min="0" max="5" class="form-control" id="n2" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Peso 2 (Ej: 0.3)</label>
+                            <input type="number" step="0.1" min="0" max="1" class="form-control" id="p2" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Nota 3 (0-5)</label>
+                            <input type="number" step="0.1" min="0" max="5" class="form-control" id="n3" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Peso 3 (Ej: 0.4)</label>
+                            <input type="number" step="0.1" min="0" max="1" class="form-control" id="p3" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Guardar y Calcular</button>
+                </form>
+                <div id="mensajeError" class="text-danger mt-3"></div>
+            </div>
+        </div>
+
+        <!-- Tabla General y Consulta Detallada -->
+        <div class="col-md-7">
+            <div class="card shadow p-4 mb-4">
+                <h3>Consultar Estudiante por Código</h3>
+                <div class="input-group">
+                    <input type="text" id="buscarCodigo" class="form-control" placeholder="Ej. A1...">
+                    <button class="btn btn-outline-secondary" type="button" onclick="consultarUno()">Buscar</button>
+                </div>
+                <div id="resultadoBusqueda" class="mt-2 text-info fw-bold"></div>
+            </div>
+
+            <div class="card shadow p-4">
+                <h3>Tabla General de Estudiantes</h3>
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                    * Nota mínima para aprobar: 3.5
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-striped mt-2 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Cód</th>
+                                <th>Nombre</th>
+                                <th>Notas y Porcentajes</th>
+                                <th>Nota Final</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEstudiantes">
+                            <!-- Se llena con JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('formEstudiante').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('mensajeError').innerText = '';
+
+            const data = {
+                nombre: document.getElementById('nombre').value,
+                notas: [
+                    parseFloat(document.getElementById('n1').value),
+                    parseFloat(document.getElementById('n2').value),
+                    parseFloat(document.getElementById('n3').value)
+                ],
+                pesos: [
+                    parseFloat(document.getElementById('p1').value),
+                    parseFloat(document.getElementById('p2').value),
+                    parseFloat(document.getElementById('p3').value)
+                ]
+            };
+
+            const response = await fetch('/estudiantes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                document.getElementById('formEstudiante').reset();
+                cargarTabla();
+            } else {
+                document.getElementById('mensajeError').innerText = result.error;
+            }
+        });
+
+        async function cargarTabla() {
+            const response = await fetch('/estudiantes');
+            const estudiantes = await response.json();
+            const tbody = document.getElementById('tablaEstudiantes');
+            tbody.innerHTML = '';
+            estudiantes.forEach(est => {
+                let detNotas = `
+                    <small>
+                        N1: ${est.notas[0]} (${Math.round(est.pesos[0]*100)}%)<br>
+                        N2: ${est.notas[1]} (${Math.round(est.pesos[1]*100)}%)<br>
+                        N3: ${est.notas[2]} (${Math.round(est.pesos[2]*100)}%)
+                    </small>
+                `;
+
+                tbody.innerHTML += `<tr>
+                    <td><b>${est.codigo}</b></td>
+                    <td>${est.nombre}</td>
+                    <td>${detNotas}</td>
+                    <td><b>${est.nota_final}</b></td>
+                    <td><span class="badge ${est.estado === 'Aprobado' ? 'bg-success' : 'bg-danger'}">${est.estado}</span></td>
+                </tr>`;
+            });
+        }
+
+        async function consultarUno() {
+            const codigo = document.getElementById('buscarCodigo').value;
+            const res = await fetch(`/estudiantes/${codigo}`);
+            const div = document.getElementById('resultadoBusqueda');
+            if (res.ok) {
+                const est = await res.json();
+                div.innerText = `Código: ${est.codigo} | ${est.nombre} | Final: ${est.nota_final} | ${est.estado}`;
+            } else {
+                div.innerText = "Estudiante no encontrado";
+            }
+        }
+
+        cargarTabla();
+    </script>
+</body>
+</html>
